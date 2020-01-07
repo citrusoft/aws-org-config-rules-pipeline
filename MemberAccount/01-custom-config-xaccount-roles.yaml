@@ -1,0 +1,75 @@
+---
+# 
+# Filename    : 01-custom-config-xaccount-roles.yaml
+# Date        : 02 Dec 2019
+# Author      : Tommy Hunt (tahv@pge.com)
+# Description : Cross-account roles that allow OrganizationConfigRule, VPCFlowLogS3Enforcement, 
+#               to detect, correct and report non-compliant VPC FlowLogging.
+
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  pComplianceAcctNum:
+    Description: "Compliance account number"
+    Type: String
+    MaxLength: 12
+    Default: 567207295412
+    # AllowedValues:
+    #   - 158467620404 # cybersec-dev
+    #   - 553067951317 # cybersec-prod
+Resources:
+  #Enables centralized cyber-security-lambdas to report on OrganizationConfigRules compliance
+  rOrgConfigRuleEvalsRole2:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: OrgConfigRuleEvalsRole2
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS: 
+                - !Sub "arn:aws:iam::${pComplianceAcctNum}:root"
+      Policies:
+        - PolicyName: OrgConfigRuleEvalsPolicy2
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'config:PutEvaluations'
+                Resource: '*'
+  # Use for AWS Config Enforcement of VPC Flow Log configuration checks.
+  rVPCFlowLogS3EnforcementLambdaRole2:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: VPCFlowLogS3EnforcementLambdaRole2
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          Effect: Allow
+          Principal:
+            AWS:
+              - !Sub "arn:aws:iam::${pComplianceAcctNum}:root"
+          Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: VPCFlowLogS3EnforcementLambdaPolicy2
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'logs:DescribeLogStreams'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:CreateLogDelivery'
+                  - 'logs:DeleteLogDelivery'
+                  - 'ec2:CreateFlowLogs'
+                  - 'ec2:DescribeFlowLogs'
+                  - 'config:PutEvaluations'
+                  - 'config:StartConfigRulesEvaluation'
+                Resource:
+                  - '*'

@@ -1,28 +1,31 @@
-#  Copyright 2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with
-#  the License. A copy of the License is located at
-#      http://aws.amazon.com/apache2.0/
-#  or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-#  CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and
-#  limitations under the License.
+---
+# Filename    : ToolsAcct/code-pipeline.yaml
+# Date        : 12 Jan 2020
+# Author      : Tommy Hunt (tahv@pge.com)
+# Description : The pipeline deploys organization config rules with supporting lambdas and roles.
+#
 
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CodePipeline for the Sample Lambda Function
+Description: CodePipeline for Organization Config Rules
 Parameters:
   ProjectName:
     Description: Name of the Project
     Type: String
-    Default: sample-lambda
+    Default: aws-org-config-rules
+  BranchName:
+    Description: Name of the branch
+    Type: String
+    Default: cfg-rules
   S3Bucket:
     Description: S3 Bucket, which will hold the artifacts
     Type: String
   DevAccount:
     Description: AWS AccountNumber for dev
     Type: Number
-  TestAccount:
-    Description: AWS AccountNumber for test
+  ComplianceAccount:
+    Description: AWS AccountNumber for centralized compliance artifacts
     Type: Number
-  ProductionAccount:
+  MasterAccount:
     Description: AWS AccountNumber for production
     Type: Number
   CMKARN:
@@ -113,12 +116,15 @@ Resources:
               commands:
                 - printenv
                 - ls -R
-                - pip install -r scripts/requirements.txt -t "$PWD"
+                - pip install -r rules/requirements.txt -t "$PWD"
             build:
               commands:
-                - aws cloudformation package --template-file lambda-cloudformation.yaml --s3-bucket $S3Bucket --s3-prefix sample-lambda/codebuild --output-template-file samtemplate.yaml
+                - aws cloudformation package --template-file org-config-rules.yaml --s3-bucket $S3Bucket --s3-prefix codebuild --output-template-file omcr-cfntemplate.yaml
+                - aws cloudformation package --template-file lambda-cloudformation.yaml --s3-bucket $S3Bucket --s3-prefix codebuild --output-template-file samtemplate.yaml
           artifacts:
-            files: samtemplate.yaml
+            files: 
+              - samtemplate.yaml
+              - omcr-cfntemplate.yaml
             discard-paths: yes
 
       TimeoutInMinutes: 10
@@ -198,8 +204,8 @@ Resources:
               - sts:AssumeRole
             Resource:
               - !Sub arn:aws:iam::${DevAccount}:role/ToolsAcctCodePipelineCodeCommitRole
-              - !Sub arn:aws:iam::${ProductionAccount}:role/ToolsAcctCodePipelineCloudFormationRole
-              - !Sub arn:aws:iam::${TestAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+              - !Sub arn:aws:iam::${MasterAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+              - !Sub arn:aws:iam::${ComplianceAccount}:role/ToolsAcctCodePipelineCloudFormationRole
 
       Roles:
         -
@@ -220,7 +226,7 @@ Resources:
                 Provider: CodeCommit
               Configuration:
                 RepositoryName: !Ref ProjectName
-                BranchName: master
+                BranchName: !Ref BranchName
               OutputArtifacts:
                 - Name: SCCheckoutArtifact
               RunOrder: 1
@@ -248,61 +254,61 @@ Resources:
             OutputArtifacts:
               - Name: BuildOutput
             #REMOVE:RoleArn: arn:aws:iam::485873893626:role/ToolsAcctCodePipelineCodeCommitRole
-        - Name: DeployToTest
+        - Name: DeployToCompliance
           Actions:
-            - Name: CreateChangeSetTest
+            - Name: CreateComplianceChangeSet
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-dev
+                ChangeSetName: org-config-rules-lambda
                 ActionMode: CHANGE_SET_REPLACE
-                StackName: sample-lambda-dev
+                StackName: org-config-rules-lambda
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath: BuildOutput::samtemplate.yaml
-                #RoleArn: !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
+                #RoleArn: !Sub arn:aws:iam::${ComplianceAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
                   - AddCodeBuildResource
-                  - !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
+                  - !Sub arn:aws:iam::${ComplianceAccount}:role/cloudformationdeployer-role
                   - !Ref AWS::NoValue
               InputArtifacts:
                 - Name: BuildOutput
               RunOrder: 1
-              #RoleArn: !Sub arn:aws:iam::${TestAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+              #RoleArn: !Sub arn:aws:iam::${ComplianceAccount}:role/ToolsAcctCodePipelineCloudFormationRole
               RoleArn:
                   Fn::If:
                   - AddCodeBuildResource
-                  - !Sub arn:aws:iam::${TestAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+                  - !Sub arn:aws:iam::${ComplianceAccount}:role/ToolsAcctCodePipelineCloudFormationRole
                   - !Ref AWS::NoValue
-            - Name: DeployChangeSetTest
+            - Name: DeployComplianceChangeSet
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-dev
+                ChangeSetName: org-config-rules-lambda
                 ActionMode: CHANGE_SET_EXECUTE
-                StackName: sample-lambda-dev
-                #RoleArn: !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
+                StackName: org-config-rules-lambda
+                #RoleArn: !Sub arn:aws:iam::${ComplianceAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
                   - AddCodeBuildResource
-                  - !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
+                  - !Sub arn:aws:iam::${ComplianceAccount}:role/cloudformationdeployer-role
                   - !Ref AWS::NoValue
               InputArtifacts:
                 - Name: BuildOutput
               RunOrder: 2
-              #RoleArn: !Sub arn:aws:iam::${TestAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+              #RoleArn: !Sub arn:aws:iam::${ComplianceAccount}:role/ToolsAcctCodePipelineCloudFormationRole
               RoleArn:
                   Fn::If:
                   - AddCodeBuildResource
-                  - !Sub arn:aws:iam::${TestAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+                  - !Sub arn:aws:iam::${ComplianceAccount}:role/ToolsAcctCodePipelineCloudFormationRole
                   - !Ref AWS::NoValue
-        - Name: DeployToProduction
+        - Name: DeployToMaster
           Actions:
             - Name: CreateChangeSetProd
               ActionTypeId:
@@ -311,25 +317,25 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-test
+                ChangeSetName: aws-org-config-rules
                 ActionMode: CHANGE_SET_REPLACE
-                StackName: sample-lambda-test
+                StackName: aws-org-config-rules
                 Capabilities: CAPABILITY_NAMED_IAM
-                TemplatePath: BuildOutput::samtemplate.yaml
-                #RoleArn: !Sub arn:aws:iam::${ProductionAccount}:role/cloudformationdeployer-role
+                TemplatePath: BuildOutput::omcr-cfntemplate.yaml
+                #RoleArn: !Sub arn:aws:iam::${MasterAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
                   - AddCodeBuildResource
-                  - !Sub arn:aws:iam::${ProductionAccount}:role/cloudformationdeployer-role
+                  - !Sub arn:aws:iam::${MasterAccount}:role/cloudformationdeployer-role
                   - !Ref AWS::NoValue
               InputArtifacts:
                 - Name: BuildOutput
               RunOrder: 1
-              #RoleArn: !Sub arn:aws:iam::${ProductionAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+              #RoleArn: !Sub arn:aws:iam::${MasterAccount}:role/ToolsAcctCodePipelineCloudFormationRole
               RoleArn:
                   Fn::If:
                   - AddCodeBuildResource
-                  - !Sub arn:aws:iam::${ProductionAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+                  - !Sub arn:aws:iam::${MasterAccount}:role/ToolsAcctCodePipelineCloudFormationRole
                   - !Ref AWS::NoValue
             - Name: DeployChangeSetProd
               ActionTypeId:
@@ -338,23 +344,23 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-test
+                ChangeSetName: aws-org-config-rules
                 ActionMode: CHANGE_SET_EXECUTE
-                StackName: sample-lambda-test
-                #RoleArn: !Sub arn:aws:iam::${ProductionAccount}:role/cloudformationdeployer-role
+                StackName: aws-org-config-rules
+                #RoleArn: !Sub arn:aws:iam::${MasterAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
                   - AddCodeBuildResource
-                  - !Sub arn:aws:iam::${ProductionAccount}:role/cloudformationdeployer-role
+                  - !Sub arn:aws:iam::${MasterAccount}:role/cloudformationdeployer-role
                   - !Ref AWS::NoValue
               InputArtifacts:
                 - Name: BuildOutput
               RunOrder: 2
-              #RoleArn: !Sub arn:aws:iam::${ProductionAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+              #RoleArn: !Sub arn:aws:iam::${MasterAccount}:role/ToolsAcctCodePipelineCloudFormationRole
               RoleArn:
                 Fn::If:
                 - AddCodeBuildResource
-                - !Sub arn:aws:iam::${ProductionAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+                - !Sub arn:aws:iam::${MasterAccount}:role/ToolsAcctCodePipelineCloudFormationRole
                 - !Ref AWS::NoValue
 
       ArtifactStore:
@@ -379,8 +385,8 @@ Resources:
             Principal:
               AWS:
                 - !Sub arn:aws:iam::${DevAccount}:role/ToolsAcctCodePipelineCodeCommitRole
-                - !Sub arn:aws:iam::${TestAccount}:role/ToolsAcctCodePipelineCloudFormationRole
-                - !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
-                - !Sub arn:aws:iam::${ProductionAccount}:role/ToolsAcctCodePipelineCloudFormationRole
-                - !Sub arn:aws:iam::${ProductionAccount}:role/cloudformationdeployer-role
+                - !Sub arn:aws:iam::${ComplianceAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+                - !Sub arn:aws:iam::${ComplianceAccount}:role/cloudformationdeployer-role
+                - !Sub arn:aws:iam::${MasterAccount}:role/ToolsAcctCodePipelineCloudFormationRole
+                - !Sub arn:aws:iam::${MasterAccount}:role/cloudformationdeployer-role
                 - !GetAtt [BuildProjectRole,Arn]
