@@ -116,9 +116,12 @@ Resources:
                 - pip install -r scripts/requirements.txt -t "$PWD"
             build:
               commands:
+                - aws cloudformation package --template-file org-managed-config-rules.yaml --s3-bucket $S3Bucket --s3-prefix sample-lambda/codebuild --output-template-file omcr-cfntemplate.yaml
                 - aws cloudformation package --template-file lambda-cloudformation.yaml --s3-bucket $S3Bucket --s3-prefix sample-lambda/codebuild --output-template-file samtemplate.yaml
           artifacts:
-            files: samtemplate.yaml
+            files: 
+              - samtemplate.yaml
+              - omcr-cfntemplate.yaml
             discard-paths: yes
 
       TimeoutInMinutes: 10
@@ -257,9 +260,9 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-dev
+                ChangeSetName: omcr-lambda-test
                 ActionMode: CHANGE_SET_REPLACE
-                StackName: sample-lambda-dev
+                StackName: omcr-lambda-test
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath: BuildOutput::samtemplate.yaml
                 #RoleArn: !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
@@ -284,9 +287,9 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-dev
+                ChangeSetName: omcr-lambda-test
                 ActionMode: CHANGE_SET_EXECUTE
-                StackName: sample-lambda-dev
+                StackName: sample-lambda-test
                 #RoleArn: !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
@@ -302,7 +305,7 @@ Resources:
                   - AddCodeBuildResource
                   - !Sub arn:aws:iam::${TestAccount}:role/ToolsAcctCodePipelineCloudFormationRole
                   - !Ref AWS::NoValue
-        - Name: DeployToProduction
+        - Name: DeployToMaster
           Actions:
             - Name: CreateChangeSetProd
               ActionTypeId:
@@ -311,11 +314,11 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-test
+                ChangeSetName: org-managed-config-rules
                 ActionMode: CHANGE_SET_REPLACE
-                StackName: sample-lambda-test
+                StackName: org-managed-config-rules
                 Capabilities: CAPABILITY_NAMED_IAM
-                TemplatePath: BuildOutput::samtemplate.yaml
+                TemplatePath: BuildOutput::omcr-cfntemplate.yaml
                 #RoleArn: !Sub arn:aws:iam::${ProductionAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
@@ -338,9 +341,9 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: sample-lambda-test
+                ChangeSetName: org-managed-config-rules
                 ActionMode: CHANGE_SET_EXECUTE
-                StackName: sample-lambda-test
+                StackName: org-managed-config-rules
                 #RoleArn: !Sub arn:aws:iam::${ProductionAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
