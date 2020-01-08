@@ -4,14 +4,16 @@ ENTER_TEST_ACCT=567207295412 #tahunt
 ENTER_PROD_ACCT=930856341568 #julio
 ENTER_TOOLS_ACCT=782391863272 #betsy
 MASTER_ACCT=919568423267 #tah
-CMKARN=arn:aws:kms:us-east-2:782391863272:key/484b1410-fdb8-4f7f-8225-71e9b9a4b6a6
-S3BUX=aws-org-config-rules-pre-reqs-artifactbucket-1bnnl3qtpawu3
+CMKARN=arn:aws:kms:us-east-2:782391863272:key/6e24d2f0-58fb-4e77-9e1d-6bdd85f62a64
+S3BUX=aws-org-config-rules-pre-reqs-artifactbucket-1w0awwih4khha
 
 aws codecommit create-repository --repository-name aws-org-config-rules --repository-description "Organization Config Rules both Managed and Custom." --profile thunt
 
 git remote add AWSCodeCommit https://git-codecommit.us-east-2.amazonaws.com/v1/repos/aws-org-config-rules
 
 git push AWSCodeCommit master
+
+
 1. In the Tools account, create S3, KMS, Alias, grant access to Dev, Test, Prod accts.
 aws cloudformation deploy --stack-name aws-org-config-rules-pre-reqs \
 --template-file ToolsAcct/pre-reqs.yaml --parameter-overrides \
@@ -27,18 +29,18 @@ aws cloudformation deploy --stack-name toolsacct-codepipeline-role \
 aws cloudformation deploy --stack-name toolsacct-codepipeline-cloudformation-role \
 --template-file TestAccount/toolsacct-codepipeline-cloudformation-deployer.yaml \
 --capabilities CAPABILITY_NAMED_IAM \
---parameter-overrides ToolsAccount=$ENTER_TOOLS_ACCT CMKARN=$CMKARN  \
+--parameter-overrides MasterAccount=$MASTER_ACCT ToolsAccount=$ENTER_TOOLS_ACCT CMKARN=$CMKARN  \
 S3Bucket=$S3BUX \
 --profile tahunt
 
 aws cloudformation deploy --stack-name toolsacct-codepipeline-cloudformation-role \
 --template-file MasterAccount/toolsacct-codepipeline-cloudformation-deployer.yaml \
 --capabilities CAPABILITY_NAMED_IAM \
---parameter-overrides MasterAccount=$MASTER_ACCT ToolsAccount=$ENTER_TOOLS_ACCT \
+--parameter-overrides ToolsAccount=$ENTER_TOOLS_ACCT \
 CMKARN=$CMKARN S3Bucket=$S3BUX \
 --profile tah
 
-4.
+4.In the Tools account, create AWS CodePipeline with no permissions for the cross accounts (Dev, Test, and Prod).
 aws cloudformation deploy --stack-name aws-org-config-rules-pipeline \
 --template-file ToolsAcct/code-pipeline.yaml \
 --parameter-overrides DevAccount=$ENTER_DEV_ACCT TestAccount=$ENTER_TEST_ACCT \
@@ -46,13 +48,15 @@ ProductionAccount=$MASTER_ACCT CMKARN=$CMKARN \
 S3Bucket=$S3BUX --capabilities CAPABILITY_NAMED_IAM \
 --profile betsy
 
-5.
+5. In the Tools account, give access to the role created in step 4 to be assumed by AWS CodeBuild to decrypt artifacts in the S3 bucket. This is the same template that was used in step 1, but with different parameters.
 aws cloudformation deploy --stack-name aws-org-config-rules-pre-reqs \
 --template-file ToolsAcct/pre-reqs.yaml \
 --parameter-overrides CodeBuildCondition=true \
 --profile betsy
 
-6.
+6. In the Tools account, execute this CloudFormation template, which will do the following:
+A) Add the IAM role created in step 2. This role is used by AWS CodePipeline in the Tools account for checking out code from the AWS CodeCommit repository in the Dev account.
+B) Add the IAM role created in step 3. This role is used by AWS CodePipeline in the Tools account for deploying the code package to the Test and Prod accounts.
 aws cloudformation deploy --stack-name aws-org-config-rules-pipeline \
 --template-file ToolsAcct/code-pipeline.yaml \
 --parameter-overrides CrossAccountCondition=true \
@@ -64,8 +68,14 @@ aws cloudformation deploy --stack-name aws-org-config-rules-pipeline \
 aws cloudformation delete-stack --stack-name aws-org-config-rules-pipeline \
 --profile betsy
 
+aws cloudformation delete-stack --stack-name omcr-lambda-test \
+--profile tahunt
+
 aws cloudformation delete-stack --stack-name toolsacct-codepipeline-cloudformation-role \
 --profile tahunt
+
+aws cloudformation delete-stack --stack-name org-managed-config-rules \
+--profile tah
 
 aws cloudformation delete-stack --stack-name toolsacct-codepipeline-cloudformation-role \
 --profile tah
@@ -101,4 +111,13 @@ aws cloudformation list-stacks --profile tah
 aws cloudformation list-stacks --profile thunt
 
 aws cloudformation list-stacks --profile betsy
+
+####################### TRANSACTION STATUS ####################
+aws configservice describe-organization-config-rules --profile tah
+
+aws configservice get-organization-config-rule-detailed-status --organization-config-rule-name ec2-required-tags --profile tah
+
+aws configservice get-organization-config-rule-detailed-status --organization-config-rule-name encrypted-volumes --profile tah
+
+aws configservice delete-organization-config-rule --organization-config-rule-name pge-s3-tags --profile tah
 
