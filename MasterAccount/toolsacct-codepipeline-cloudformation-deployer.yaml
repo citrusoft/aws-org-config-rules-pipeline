@@ -15,9 +15,6 @@ Parameters:
   ToolsAccount:
     Description: AWS AccountNumber for Tools
     Type: Number
-  MasterAccount:
-    Description: AWS AccountNumber for Master
-    Type: Number
   CMKARN:
     Description: ARN of the KMS CMK creates in Tools account
     Type: String
@@ -73,13 +70,6 @@ Resources:
                 - cloudformation.amazonaws.com
             Action:
               - sts:AssumeRole
-          -
-            Effect: Allow
-            Principal:
-              AWS:
-                - !Ref MasterAccount
-            Action:
-              - sts:AssumeRole
       Path: /
   CFDeployerPolicy:
     Type: AWS::IAM::Policy
@@ -111,7 +101,6 @@ Resources:
               - cloudformation:*
               - organizations:*
               - config:*
-              - lambda:*
             Resource: "*"
           -
             Effect: Allow
