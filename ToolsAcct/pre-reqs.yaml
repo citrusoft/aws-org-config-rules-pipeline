@@ -21,7 +21,7 @@ Parameters:
   ProjectName:
     Description: Name of the Project
     Type: String
-    Default: sample-lambda
+    Default: aws-org-config-rules
   CodeBuildCondition:
     Description: Conditionally adds the access required by code build project role
     Type: String

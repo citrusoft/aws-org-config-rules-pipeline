@@ -7,12 +7,16 @@
 #  limitations under the License.
 
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CodePipeline for the Sample Lambda Function
+Description: CodePipeline for Organization Config Rules
 Parameters:
   ProjectName:
     Description: Name of the Project
     Type: String
-    Default: sample-lambda
+    Default: aws-org-config-rules
+  BranchName:
+    Description: Name of the branch
+    Type: String
+    Default: cfg-rules
   S3Bucket:
     Description: S3 Bucket, which will hold the artifacts
     Type: String
@@ -223,7 +227,7 @@ Resources:
                 Provider: CodeCommit
               Configuration:
                 RepositoryName: !Ref ProjectName
-                BranchName: master
+                BranchName: !Ref BranchName
               OutputArtifacts:
                 - Name: SCCheckoutArtifact
               RunOrder: 1
@@ -289,7 +293,7 @@ Resources:
               Configuration:
                 ChangeSetName: omcr-lambda-test
                 ActionMode: CHANGE_SET_EXECUTE
-                StackName: sample-lambda-test
+                StackName: omcr-lambda-test
                 #RoleArn: !Sub arn:aws:iam::${TestAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:

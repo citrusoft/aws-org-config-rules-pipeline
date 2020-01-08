@@ -99,6 +99,8 @@ Resources:
               - iam:PassRole
               - iam:DeleteRolePolicy
               - cloudformation:*
+              - organizations:*
+              - config:*
             Resource: "*"
           -
             Effect: Allow
