@@ -1,10 +1,9 @@
-#  Copyright 2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#  Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with
-#  the License. A copy of the License is located at
-#      http://aws.amazon.com/apache2.0/
-#  or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-#  CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and
-#  limitations under the License.
+---
+# Filename    : ToolsAcct/code-pipeline.yaml
+# Date        : 12 Jan 2020
+# Author      : Tommy Hunt (tahv@pge.com)
+# Description : The pipeline deploys organization config rules with supporting lambdas and roles.
+#
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CodePipeline for Organization Config Rules
@@ -117,11 +116,11 @@ Resources:
               commands:
                 - printenv
                 - ls -R
-                - pip install -r scripts/requirements.txt -t "$PWD"
+                - pip install -r rules/requirements.txt -t "$PWD"
             build:
               commands:
-                - aws cloudformation package --template-file org-managed-config-rules.yaml --s3-bucket $S3Bucket --s3-prefix sample-lambda/codebuild --output-template-file omcr-cfntemplate.yaml
-                - aws cloudformation package --template-file lambda-cloudformation.yaml --s3-bucket $S3Bucket --s3-prefix sample-lambda/codebuild --output-template-file samtemplate.yaml
+                - aws cloudformation package --template-file org-config-rules.yaml --s3-bucket $S3Bucket --s3-prefix codebuild --output-template-file omcr-cfntemplate.yaml
+                - aws cloudformation package --template-file lambda-cloudformation.yaml --s3-bucket $S3Bucket --s3-prefix codebuild --output-template-file samtemplate.yaml
           artifacts:
             files: 
               - samtemplate.yaml
@@ -255,18 +254,18 @@ Resources:
             OutputArtifacts:
               - Name: BuildOutput
             #REMOVE:RoleArn: arn:aws:iam::485873893626:role/ToolsAcctCodePipelineCodeCommitRole
-        - Name: DeployToTest
+        - Name: DeployToCompliance
           Actions:
-            - Name: CreateChangeSetTest
+            - Name: CreateComplianceChangeSet
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: omcr-lambda-compliance
+                ChangeSetName: org-config-rules-lambda
                 ActionMode: CHANGE_SET_REPLACE
-                StackName: omcr-lambda-compliance
+                StackName: org-config-rules-lambda
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath: BuildOutput::samtemplate.yaml
                 #RoleArn: !Sub arn:aws:iam::${ComplianceAccount}:role/cloudformationdeployer-role
@@ -284,16 +283,16 @@ Resources:
                   - AddCodeBuildResource
                   - !Sub arn:aws:iam::${ComplianceAccount}:role/ToolsAcctCodePipelineCloudFormationRole
                   - !Ref AWS::NoValue
-            - Name: DeployChangeSetTest
+            - Name: DeployComplianceChangeSet
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: omcr-lambda-compliance
+                ChangeSetName: org-config-rules-lambda
                 ActionMode: CHANGE_SET_EXECUTE
-                StackName: omcr-lambda-compliance
+                StackName: org-config-rules-lambda
                 #RoleArn: !Sub arn:aws:iam::${ComplianceAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:
@@ -318,9 +317,9 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: org-managed-config-rules
+                ChangeSetName: aws-org-config-rules
                 ActionMode: CHANGE_SET_REPLACE
-                StackName: org-managed-config-rules
+                StackName: aws-org-config-rules
                 Capabilities: CAPABILITY_NAMED_IAM
                 TemplatePath: BuildOutput::omcr-cfntemplate.yaml
                 #RoleArn: !Sub arn:aws:iam::${MasterAccount}:role/cloudformationdeployer-role
@@ -345,9 +344,9 @@ Resources:
                 Version: 1
                 Provider: CloudFormation
               Configuration:
-                ChangeSetName: org-managed-config-rules
+                ChangeSetName: aws-org-config-rules
                 ActionMode: CHANGE_SET_EXECUTE
-                StackName: org-managed-config-rules
+                StackName: aws-org-config-rules
                 #RoleArn: !Sub arn:aws:iam::${MasterAccount}:role/cloudformationdeployer-role
                 RoleArn:
                   Fn::If:

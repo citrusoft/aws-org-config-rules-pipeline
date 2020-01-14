@@ -4,8 +4,8 @@ ENTER_COMPLY_ACCT=567207295412 #tahunt
 ENTER_PROD_ACCT=930856341568 #julio
 ENTER_TOOLS_ACCT=782391863272 #betsy
 MASTER_ACCT=919568423267 #tah
-CMKARN=arn:aws:kms:us-east-2:782391863272:key/5ed746d1-acb6-4863-9fec-f890f967409e
-S3BUX=aws-org-config-rules-pre-reqs-artifactbucket-i6w3irq68q0i
+CMKARN=arn:aws:kms:us-east-2:782391863272:key/876fafe6-5f7a-47ce-a9f9-63577a0510bd
+S3BUX=aws-org-config-rules-pre-reqs-artifactbucket-1ne2xu66qv9vf
 
 aws codecommit create-repository --repository-name aws-org-config-rules --repository-description "Organization Config Rules both Managed and Custom." --profile thunt
 
@@ -29,8 +29,8 @@ aws cloudformation deploy --stack-name toolsacct-codepipeline-role \
 aws cloudformation deploy --stack-name toolsacct-codepipeline-cloudformation-role \
 --template-file ComplianceAccount/toolsacct-codepipeline-cloudformation-deployer.yaml \
 --capabilities CAPABILITY_NAMED_IAM \
---parameter-overrides MasterAccount=$MASTER_ACCT ToolsAccount=$ENTER_TOOLS_ACCT CMKARN=$CMKARN  \
-S3Bucket=$S3BUX \
+--parameter-overrides MasterAccount=$MASTER_ACCT ToolsAccount=$ENTER_TOOLS_ACCT \
+CMKARN=$CMKARN  S3Bucket=$S3BUX \
 --profile tahunt
 
 aws cloudformation deploy --stack-name toolsacct-codepipeline-cloudformation-role \
@@ -43,9 +43,9 @@ CMKARN=$CMKARN S3Bucket=$S3BUX \
 4.In the Tools account, create AWS CodePipeline with no permissions for the cross accounts (Dev, Test, and Prod).
 aws cloudformation deploy --stack-name aws-org-config-rules-pipeline \
 --template-file ToolsAcct/code-pipeline.yaml \
---parameter-overrides DevAccount=$ENTER_DEV_ACCT ComplianceAccount=$ENTER_COMPLY_ACCT \
-ProductionAccount=$MASTER_ACCT CMKARN=$CMKARN \
-S3Bucket=$S3BUX --capabilities CAPABILITY_NAMED_IAM \
+--parameter-overrides DevAccount=$ENTER_DEV_ACCT ComplianceAccount=$ENTER_COMPLY_ACCT MasterAccount=$MASTER_ACCT \
+CMKARN=$CMKARN  S3Bucket=$S3BUX \
+--capabilities CAPABILITY_NAMED_IAM \
 --profile betsy
 
 5. In the Tools account, give access to the role created in step 4 to be assumed by AWS CodeBuild to decrypt artifacts in the S3 bucket. This is the same template that was used in step 1, but with different parameters.

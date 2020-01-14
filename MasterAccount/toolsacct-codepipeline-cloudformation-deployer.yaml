@@ -3,7 +3,7 @@
 # Filename    : toolsacct-codepipeline-cloudformation-deployer.yaml
 # Date        : 02 Dec 2019
 # Author      : Tommy Hunt (tahv@pge.com)
-# Description : CodePipeline roles for deploying config and lambdas via cfn.
+# Description : CodePipeline roles for deploying org config rules via cfn.
 
 
 AWSTemplateFormatVersion: '2010-09-09'
@@ -90,7 +90,6 @@ Resources:
               - lambda:GetFunctionConfiguration
               - lambda:GetFunction
               - lambda:UpdateFunctionConfiguration
-              - events:* # Required for the sample lambda function to work
               - iam:CreateRole
               - iam:CreatePolicy
               - iam:GetRole

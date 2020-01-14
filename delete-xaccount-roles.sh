@@ -41,3 +41,7 @@ aws cloudformation delete-stack --stack-name toolsacct-codepipeline-role \
 echo Delete the pre-requsites S3, KMS from the Tools account.
 aws cloudformation delete-stack --stack-name aws-org-config-rules-pre-reqs \
 --profile betsy
+
+echo Delete the pre-requsites S3, KMS from the Tools account.
+aws cloudformation delete-stack --stack-name pre-reqs \
+--profile betsy

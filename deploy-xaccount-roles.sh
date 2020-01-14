@@ -20,8 +20,8 @@ aws cloudformation deploy --stack-name custom-config-xaccount-roles \
  --template-file MemberAccount/01-custom-config-xaccount-roles.yaml \
  --capabilities CAPABILITY_NAMED_IAM \
  --profile thunt
-echo Cross-account roles in ComplianceAccount
-aws cloudformation deploy --stack-name custom-config-xaccount-roles \
- --template-file MemberAccount/01-custom-config-xaccount-roles.yaml \
- --capabilities CAPABILITY_NAMED_IAM \
- --profile tahunt
+# echo Cross-account roles in ComplianceAccount
+# aws cloudformation deploy --stack-name custom-config-xaccount-roles \
+#  --template-file MemberAccount/01-custom-config-xaccount-roles.yaml \
+#  --capabilities CAPABILITY_NAMED_IAM \
+#  --profile tahunt

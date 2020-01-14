@@ -5,10 +5,6 @@
 # Author      : Tommy Hunt (tahv@pge.com)
 # Description : Cross-account roles that allow OrganizationConfigRule, VPCFlowLogS3Enforcement, 
 #               to detect, correct and report non-compliant VPC FlowLogging.
-#
-
-# roles and policies are documented in https://wiki.comp.pge.com/x/ZToIAw
-
 
 AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
